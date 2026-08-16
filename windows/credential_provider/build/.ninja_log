@@ -1,0 +1,23 @@
+# ninja log v7
+211	12889	8085163188560900	CMakeFiles/test_client.dir/helpers.cpp.obj	9de4991f42d23f2a
+177	12898	8085163188217488	CMakeFiles/KeyLinkProvider.dir/helpers.cpp.obj	e94d870edb5acd86
+89	5754	8085163537234743	CMakeFiles/KeyLinkProvider.dir/Dll.cpp.obj	755145b8c7845c9b
+42	3277	8085167729519696	CMakeFiles/test_client.dir/test_client.cpp.obj	ba0ef322e2a2b3f
+3278	3605	8085167761877603	test_client.exe	6f8e21aca29aaa70
+68	10172	8085239797849849	CMakeFiles/KeyLinkProvider.dir/CredentialProvider.cpp.obj	e71a6f14a28bbfcb
+38	2780	8085240144213813	CMakeFiles/KeyLinkProvider.dir/CredentialProviderCredential.cpp.obj	61f9b2011d6b7402
+2781	3364	8085240177246348	KeyLinkProvider.dll	c71ce152408ed195
+2781	3364	8085240177246348	libKeyLinkProvider.dll.a	c71ce152408ed195
+100	1175	8085245950443119	build.ninja	594ab2889d45061e
+100	1175	8085245950340415	C:/Users/ss/Desktop/project college/keylink/windows/credential_provider/build/cmake_install.cmake	594ab2889d45061e
+76	1119	8085245950443119	build.ninja	594ab2889d45061e
+76	1119	8085245950443119	C:/Users/ss/Desktop/project college/keylink/windows/credential_provider/build/cmake_install.cmake	594ab2889d45061e
+11	3798	8085246468213209	CMakeFiles/KeyLinkProvider.dir/CredentialProviderCredential.cpp.obj	61f9b2011d6b7402
+3799	4476	8085246512566031	KeyLinkProvider.dll	79bd2cd8bb4ee31f
+3799	4476	8085246512566031	libKeyLinkProvider.dll.a	79bd2cd8bb4ee31f
+203	10113	8085275039735507	CMakeFiles/KeyLinkProvider.dir/CredentialProviderCredential.cpp.obj	61f9b2011d6b7402
+10115	10758	8085275145048142	KeyLinkProvider.dll	79bd2cd8bb4ee31f
+10115	10758	8085275145048142	libKeyLinkProvider.dll.a	79bd2cd8bb4ee31f
+33	3005	8085278042834453	CMakeFiles/KeyLinkProvider.dir/CredentialProviderCredential.cpp.obj	61f9b2011d6b7402
+3006	3260	8085278074868103	KeyLinkProvider.dll	79bd2cd8bb4ee31f
+3006	3260	8085278074868103	libKeyLinkProvider.dll.a	79bd2cd8bb4ee31f

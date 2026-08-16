@@ -1,0 +1,4 @@
+C:/Users/ss/Desktop/project college/keylink/windows/credential_provider/build/CMakeFiles/KeyLinkProvider.dir
+C:/Users/ss/Desktop/project college/keylink/windows/credential_provider/build/CMakeFiles/test_client.dir
+C:/Users/ss/Desktop/project college/keylink/windows/credential_provider/build/CMakeFiles/edit_cache.dir
+C:/Users/ss/Desktop/project college/keylink/windows/credential_provider/build/CMakeFiles/rebuild_cache.dir

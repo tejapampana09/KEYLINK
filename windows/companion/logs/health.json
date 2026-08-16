@@ -1,0 +1,8 @@
+{
+  "status": "STOPPING",
+  "timestamp": "2026-08-16T06:01:38.148182+00:00",
+  "gatt": true,
+  "advertising": true,
+  "rfcomm": true,
+  "named_pipe": true
+}

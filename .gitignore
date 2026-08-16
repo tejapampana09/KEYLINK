@@ -1,0 +1,20 @@
+# Build outputs
+android/app/build/
+android/.gradle/
+android/build/
+windows/companion/build/
+windows/companion/dist/
+*.pyc
+__pycache__/
+
+# Logs & Configs
+*.log
+companion_app.log
+windows/companion/config.json
+windows/companion/companion_app.log
+
+# IDE files
+.idea/
+.vscode/
+*.iml
+.gradle/
