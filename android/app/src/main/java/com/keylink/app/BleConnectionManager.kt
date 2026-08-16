@@ -377,40 +377,38 @@ class BleConnectionManager(
 
             // Write to the Client Characteristic Configuration Descriptor (CCCD) to enable remote notifications
             val descriptor = txChar.getDescriptor(CCCD_UUID)
-            if (descriptor != null) {
-                val writeRes = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    gatt.writeDescriptor(descriptor, BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE)
-                } else {
-                    @Suppress("DEPRECATION")
-                    descriptor.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
-                    @Suppress("DEPRECATION")
-                    if (gatt.writeDescriptor(descriptor)) BluetoothStatusCodes.SUCCESS else BluetoothStatusCodes.ERROR_UNKNOWN
-                }
-                
-                if (writeRes == BluetoothStatusCodes.SUCCESS || writeRes == 0) {
-                    logCallback.onLog("[BLE Status] Subscribing to TX notifications...")
-                } else {
-                    logCallback.onLog("[BLE Status] Connected (CCCD fallback). Starting handshake...")
-                    stateCallback.onStateChanged("CONNECTED")
-                    sendAuthRequest()
-                }
+            if (descriptor == null) {
+                logCallback.onLog("[BLE Error] CCCD descriptor missing on TX characteristic.")
+                return
+            }
+
+            descriptor.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
+            val descriptorWriteSuccess = gatt.writeDescriptor(descriptor)
+            if (descriptorWriteSuccess) {
+                logCallback.onLog("[BLE Status] Subscribing to TX notifications...")
             } else {
-                logCallback.onLog("[BLE Status] Connected (No CCCD). Starting handshake...")
-                stateCallback.onStateChanged("CONNECTED")
-                sendAuthRequest()
+                logCallback.onLog("[BLE Error] Failed to write CCCD descriptor.")
             }
         }
 
         override fun onDescriptorWrite(gatt: BluetoothGatt, descriptor: BluetoothGattDescriptor, status: Int) {
             super.onDescriptorWrite(gatt, descriptor, status)
-            if (descriptor.uuid == CCCD_UUID) {
-                if (status == BluetoothGatt.GATT_SUCCESS) {
-                    logCallback.onLog("[BLE Status] CONNECTED and notifications established.")
-                } else {
-                    logCallback.onLog("[BLE Warning] Descriptor write status: $status — proceeding with handshake.")
-                }
+            if (status == BluetoothGatt.GATT_SUCCESS && descriptor.uuid == CCCD_UUID) {
+                logCallback.onLog("[BLE Status] CONNECTED and notifications established.")
                 stateCallback.onStateChanged("CONNECTED")
-                sendAuthRequest()
+                
+                // Explicitly send AUTH_REQUEST to request the authentication challenge
+                try {
+                    val requestJson = JSONObject().apply {
+                        put("type", "AUTH_REQUEST")
+                        put("version", 1)
+                    }
+                    writeBleMessage(requestJson.toString())
+                } catch (e: Exception) {
+                    logCallback.onLog("[BLE Error] Failed to send AUTH_REQUEST: ${e.message}")
+                }
+            } else {
+                logCallback.onLog("[BLE Error] Descriptor write failed (Status: $status)")
             }
         }
 
@@ -462,18 +460,6 @@ class BleConnectionManager(
             if (message.isNotEmpty()) {
                 handleIncomingBleMessage(message)
             }
-        }
-    }
-
-    private fun sendAuthRequest() {
-        try {
-            val requestJson = JSONObject().apply {
-                put("type", "AUTH_REQUEST")
-                put("version", 1)
-            }
-            writeBleMessage(requestJson.toString())
-        } catch (e: Exception) {
-            logCallback.onLog("[BLE Error] Failed to send AUTH_REQUEST: ${e.message}")
         }
     }
 
@@ -586,32 +572,15 @@ class BleConnectionManager(
                 
                 writeDeferred = CompletableDeferred()
                 
+                @Suppress("DEPRECATION")
+                rxChar.value = chunk
+                rxChar.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
+                
                 var success = false
                 withContext(Dispatchers.Main) {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                        val res = gatt.writeCharacteristic(rxChar, chunk, BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE)
-                        success = (res == BluetoothStatusCodes.SUCCESS)
-                        if (!success) {
-                            val fallbackRes = gatt.writeCharacteristic(rxChar, chunk, BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT)
-                            success = (fallbackRes == BluetoothStatusCodes.SUCCESS)
-                            if (success) {
-                                rxChar.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
-                            }
-                        }
-                    } else {
-                        @Suppress("DEPRECATION")
-                        rxChar.value = chunk
-                        rxChar.writeType = BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
-                        @Suppress("DEPRECATION")
-                        success = gatt.writeCharacteristic(rxChar)
-                        if (!success) {
-                            rxChar.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
-                            @Suppress("DEPRECATION")
-                            success = gatt.writeCharacteristic(rxChar)
-                        }
-                    }
+                    success = gatt.writeCharacteristic(rxChar)
                 }
-
+                
                 if (!success) {
                     logCallback.onLog("[BLE Error] Failed to write characteristic chunk locally.")
                     withContext(Dispatchers.Main) {
@@ -620,18 +589,22 @@ class BleConnectionManager(
                     break
                 }
                 
-                // Wait briefly for write completion if default writeType was used
-                if (rxChar.writeType == BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT) {
-                    val writeStatusSuccess = try {
-                        withTimeout(2000) {
-                            writeDeferred!!.await()
-                        }
-                    } catch (e: Exception) {
-                        false
+                // Wait for asynchronous GATT onCharacteristicWrite callback to complete
+                val writeStatusSuccess = try {
+                    withTimeout(2000) {
+                        writeDeferred!!.await()
                     }
-                    if (!writeStatusSuccess) {
-                        logCallback.onLog("[BLE Warning] GATT write callback timed out — continuing transmission.")
+                } catch (e: Exception) {
+                    logCallback.onLog("[BLE Error] Write chunk timeout: ${e.message}")
+                    false
+                }
+                
+                if (!writeStatusSuccess) {
+                    logCallback.onLog("[BLE Error] GATT write callback reported failure or timed out.")
+                    withContext(Dispatchers.Main) {
+                        disconnect()
                     }
+                    break
                 }
             }
         }
