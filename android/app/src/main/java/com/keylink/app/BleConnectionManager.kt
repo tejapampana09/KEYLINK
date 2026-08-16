@@ -574,13 +574,21 @@ class BleConnectionManager(
                 
                 @Suppress("DEPRECATION")
                 rxChar.value = chunk
-                rxChar.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
+                rxChar.writeType = BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
                 
                 var success = false
                 withContext(Dispatchers.Main) {
                     success = gatt.writeCharacteristic(rxChar)
                 }
                 
+                if (!success) {
+                    // Fallback to WRITE_TYPE_DEFAULT if NO_RESPONSE is rejected by device stack
+                    rxChar.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
+                    withContext(Dispatchers.Main) {
+                        success = gatt.writeCharacteristic(rxChar)
+                    }
+                }
+
                 if (!success) {
                     logCallback.onLog("[BLE Error] Failed to write characteristic chunk locally.")
                     withContext(Dispatchers.Main) {
@@ -589,22 +597,18 @@ class BleConnectionManager(
                     break
                 }
                 
-                // Wait for asynchronous GATT onCharacteristicWrite callback to complete
-                val writeStatusSuccess = try {
-                    withTimeout(2000) {
-                        writeDeferred!!.await()
+                // Wait briefly for write completion if default writeType was used
+                if (rxChar.writeType == BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT) {
+                    val writeStatusSuccess = try {
+                        withTimeout(2000) {
+                            writeDeferred!!.await()
+                        }
+                    } catch (e: Exception) {
+                        false
                     }
-                } catch (e: Exception) {
-                    logCallback.onLog("[BLE Error] Write chunk timeout: ${e.message}")
-                    false
-                }
-                
-                if (!writeStatusSuccess) {
-                    logCallback.onLog("[BLE Error] GATT write callback reported failure or timed out.")
-                    withContext(Dispatchers.Main) {
-                        disconnect()
+                    if (!writeStatusSuccess) {
+                        logCallback.onLog("[BLE Warning] GATT write callback timed out — continuing transmission.")
                     }
-                    break
                 }
             }
         }
