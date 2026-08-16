@@ -377,38 +377,40 @@ class BleConnectionManager(
 
             // Write to the Client Characteristic Configuration Descriptor (CCCD) to enable remote notifications
             val descriptor = txChar.getDescriptor(CCCD_UUID)
-            if (descriptor == null) {
-                logCallback.onLog("[BLE Error] CCCD descriptor missing on TX characteristic.")
-                return
-            }
-
-            descriptor.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
-            val descriptorWriteSuccess = gatt.writeDescriptor(descriptor)
-            if (descriptorWriteSuccess) {
-                logCallback.onLog("[BLE Status] Subscribing to TX notifications...")
+            if (descriptor != null) {
+                val writeRes = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    gatt.writeDescriptor(descriptor, BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE)
+                } else {
+                    @Suppress("DEPRECATION")
+                    descriptor.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
+                    @Suppress("DEPRECATION")
+                    if (gatt.writeDescriptor(descriptor)) BluetoothStatusCodes.SUCCESS else BluetoothStatusCodes.ERROR_UNKNOWN
+                }
+                
+                if (writeRes == BluetoothStatusCodes.SUCCESS || writeRes == 0) {
+                    logCallback.onLog("[BLE Status] Subscribing to TX notifications...")
+                } else {
+                    logCallback.onLog("[BLE Status] Connected (CCCD fallback). Starting handshake...")
+                    stateCallback.onStateChanged("CONNECTED")
+                    sendAuthRequest()
+                }
             } else {
-                logCallback.onLog("[BLE Error] Failed to write CCCD descriptor.")
+                logCallback.onLog("[BLE Status] Connected (No CCCD). Starting handshake...")
+                stateCallback.onStateChanged("CONNECTED")
+                sendAuthRequest()
             }
         }
 
         override fun onDescriptorWrite(gatt: BluetoothGatt, descriptor: BluetoothGattDescriptor, status: Int) {
             super.onDescriptorWrite(gatt, descriptor, status)
-            if (status == BluetoothGatt.GATT_SUCCESS && descriptor.uuid == CCCD_UUID) {
-                logCallback.onLog("[BLE Status] CONNECTED and notifications established.")
-                stateCallback.onStateChanged("CONNECTED")
-                
-                // Explicitly send AUTH_REQUEST to request the authentication challenge
-                try {
-                    val requestJson = JSONObject().apply {
-                        put("type", "AUTH_REQUEST")
-                        put("version", 1)
-                    }
-                    writeBleMessage(requestJson.toString())
-                } catch (e: Exception) {
-                    logCallback.onLog("[BLE Error] Failed to send AUTH_REQUEST: ${e.message}")
+            if (descriptor.uuid == CCCD_UUID) {
+                if (status == BluetoothGatt.GATT_SUCCESS) {
+                    logCallback.onLog("[BLE Status] CONNECTED and notifications established.")
+                } else {
+                    logCallback.onLog("[BLE Warning] Descriptor write status: $status — proceeding with handshake.")
                 }
-            } else {
-                logCallback.onLog("[BLE Error] Descriptor write failed (Status: $status)")
+                stateCallback.onStateChanged("CONNECTED")
+                sendAuthRequest()
             }
         }
 
@@ -460,6 +462,18 @@ class BleConnectionManager(
             if (message.isNotEmpty()) {
                 handleIncomingBleMessage(message)
             }
+        }
+    }
+
+    private fun sendAuthRequest() {
+        try {
+            val requestJson = JSONObject().apply {
+                put("type", "AUTH_REQUEST")
+                put("version", 1)
+            }
+            writeBleMessage(requestJson.toString())
+        } catch (e: Exception) {
+            logCallback.onLog("[BLE Error] Failed to send AUTH_REQUEST: ${e.message}")
         }
     }
 

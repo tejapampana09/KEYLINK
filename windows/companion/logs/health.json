@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-08-16 12:00:17",
+  "timestamp": "2026-08-16 12:05:33",
   "pid": 17068,
   "username": "ss",
   "executable": "C:\\Users\\ss\\AppData\\Local\\Programs\\Python\\Python310\\python.exe",
@@ -7,7 +7,7 @@
   "state": "RUNNING",
   "gatt_status": "Pending/Stopped",
   "rfcomm_status": "Active",
-  "pipe_status": "WAITING_FOR_LOGONUI",
+  "pipe_status": "LOGONUI_CONNECTED",
   "winrt_available": true,
   "error": null
 }
