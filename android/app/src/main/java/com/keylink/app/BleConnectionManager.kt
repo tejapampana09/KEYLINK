@@ -572,20 +572,29 @@ class BleConnectionManager(
                 
                 writeDeferred = CompletableDeferred()
                 
-                @Suppress("DEPRECATION")
-                rxChar.value = chunk
-                rxChar.writeType = BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
-                
                 var success = false
                 withContext(Dispatchers.Main) {
-                    success = gatt.writeCharacteristic(rxChar)
-                }
-                
-                if (!success) {
-                    // Fallback to WRITE_TYPE_DEFAULT if NO_RESPONSE is rejected by device stack
-                    rxChar.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
-                    withContext(Dispatchers.Main) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        val res = gatt.writeCharacteristic(rxChar, chunk, BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE)
+                        success = (res == BluetoothStatusCodes.SUCCESS)
+                        if (!success) {
+                            val fallbackRes = gatt.writeCharacteristic(rxChar, chunk, BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT)
+                            success = (fallbackRes == BluetoothStatusCodes.SUCCESS)
+                            if (success) {
+                                rxChar.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
+                            }
+                        }
+                    } else {
+                        @Suppress("DEPRECATION")
+                        rxChar.value = chunk
+                        rxChar.writeType = BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
+                        @Suppress("DEPRECATION")
                         success = gatt.writeCharacteristic(rxChar)
+                        if (!success) {
+                            rxChar.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
+                            @Suppress("DEPRECATION")
+                            success = gatt.writeCharacteristic(rxChar)
+                        }
                     }
                 }
 
